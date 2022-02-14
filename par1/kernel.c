@@ -23,7 +23,7 @@ int main()
         result += array[i];
     }
 }
-    printf("%f\n", result);
+    printf("GPU time%f\n", result);
 
     free(array);
     return 0;
