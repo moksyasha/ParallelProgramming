@@ -1,88 +1,101 @@
 #include <stdlib.h>
 #include <stdio.h> 
+#include <malloc.h>
 
 #define max(x, y) ((x) > (y) ? (x) : (y) )
-#define min(x, y) ((x) < (y) ? (x) : (y) )
 
 int main(int argc, char *argv[]){
     //size of matrix, tolerance, iter_max
     int size = strtol(argv[1], NULL, 10);
     double tol = atof(argv[2]);
-    int iter_max = strtol(argv[1], NULL, 10);
+    int iter_max = strtol(argv[3], NULL, 10);
 
-    //Known point values
-    double pt11 = 10;
-    double pt12 = 20;
-    double pt22 = 30;
-    double pt21 = 20;
-
-    double A[size][size];
-    for (int i = 0; i < size; i++){
-        for (int j = 0; j < size; j++){
-            //interpolate the values ​​of the auxiliary points R1 and R2 by OX
-            double R1 = pt11 * (size - j) / size + pt21 * j / size;
-            double R2 = pt12 * (size - j) / size + pt22 * j / size;
-
-            A[i][j] = R1 * (size - i) / size + R2 * i / size;
-        }
-    }
-    for (int i = 0; i < size; i++){
-        for (int j = 0; j < size; j++){
-            printf("%f ", A[i][j]);
-        }
-        printf("\n");
+    double** A = (double**)malloc((size + 2) * sizeof(double*));
+    double** Anew = (double**)malloc((size + 2) * sizeof(double*));
+    for (int i = 0; i < size + 2; ++i) {
+        A[i] = (double*)malloc((size + 2) * sizeof(double));
+        Anew[i] = (double*)malloc((size + 2) * sizeof(double));
     }
 
-    double Anew[size][size];
-
-    //#pragma acc data copy(A) create(Anew)
-    {
     int iter = 0;
-    double err = 10;
+    double error = 1.0;
+    double **ptr;
+    double add_gradient = 10.0 / (size + 2); 
     
+    #pragma acc enter data create(A[0:size+2][0:size+2], Anew[0:size+2][0:size+2]) copyin(size, add_gradient)
 
-    while ((err > tol) && (iter < iter_max)){
-        iter++;
-        err = 0;
-
-        //#pragma acc kernels
+    #pragma acc kernels
     {
-        for (int j = 1; j < size; j++){
-            for (int i = 1; i < size; i++){
-                Anew[i][j] = 0.25 * (A[i+1][j] + A[i-1][j] + A[i][j-1] + A[i][j+1]);
-                err = max(err, Anew[i][j] - A[i][j]);
+    for (int i = 0; i < size + 2; i++){
+        A[i][0] = 10 + add_gradient*i;
+        A[0][i] = 10 + add_gradient*i;
+        A[size+1][i] = 20 + add_gradient*i;
+        A[i][size+1] = 20 + add_gradient*i;
+
+        Anew[i][0] = A[i][0];
+        Anew[0][i] = A[0][i];
+        Anew[size+1][i] = A[size+1][i];
+        Anew[i][size+1] = A[i][size+1];
+    }
+    }
+
+
+    #pragma acc data create(error)
+    {   
+    while ((error > tol) && (iter < iter_max)){
+
+        iter++;
+
+        if ((iter % 150 == 0) || (iter == 1)){
+            #pragma acc kernels async(1)
+            error = 0.0;
+
+            #pragma acc data present(A, Anew)
+            #pragma acc kernels async(1)
+            {
+            #pragma acc loop independent collapse(2) reduction(max:error)
+            for (int j = 1; j < size + 1; j++){
+                for (int i = 1; i < size + 1; i++){
+                    Anew[i][j] = 0.25 * (A[i+1][j] + A[i-1][j] + A[i][j-1] + A[i][j+1]);
+                    error = max(error, Anew[i][j] - A[i][j]);
+                }
+            }
+            }
+
+        }
+        else{
+
+            #pragma acc data present(A, Anew)
+            #pragma acc kernels async(1)
+            {
+            #pragma acc loop independent collapse(2)
+            for (int j = 1; j < size + 1; j++){
+                for (int i = 1; i < size + 1; i++){
+                    Anew[i][j] = 0.25 * (A[i+1][j] + A[i-1][j] + A[i][j-1] + A[i][j+1]);
+                }
+            }
             }
         }
 
-        for (int i = 0; i < size; i++){
-            for (int j = 0; j < size; j++){
-                A[i][j] = Anew[i][j];
-            }
+        ptr = A;
+        A = Anew;
+        Anew = ptr;
+
+        if ((iter % 150 == 0) || (iter == 1)){
+            #pragma acc wait(1)
+            #pragma acc update host(error)
+            printf("%d : %lf\n", iter, error);
         }
     }
-
-        if ((iter % 100 == 0) || (iter == 1))
-            printf("%d : %f\n", iter, err);
     }
-    }
+    printf("%d : %lf\n", iter, error);
 
-    return 0;
-
-    // iter=0
-    // do while ( err > tol .and. iter < iter_max )
-    // iter = iter +1
-    // err=0._fp_kind
-    // do j=1,m
-    // do i=1,n
-    // Anew(i,j) = .25_fp_kind *( A(i+1,j ) + A(i-1,j ) &
-    // +A(i ,j-1) + A(i ,j+1))
-    // err = max( err, Anew(i,j)-A(i,j))
-    // end do
-    // end do
-
-    // A = Anew
-    // IF(mod(iter,100)==0 .or. iter == 1) print *, iter, err
-    // end do
-
+    // #pragma acc exit data delete(A[0:size+2][0:size+2], Anew[0:size+2][0:size+2])
+    // for (int i = 1; i < size + 1; i++){
+    //     free(A[i]);
+    //     free(Anew[i]);
+    // }
+    // free(A);
+    // free(Anew);
     return 0;
 }
