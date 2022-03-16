@@ -4,6 +4,7 @@
 #include "/opt/nvidia/hpc_sdk/Linux_x86_64/21.11/math_libs/11.5/targets/x86_64-linux/include/cublas_v2.h"
 #include </opt/nvidia/hpc_sdk/Linux_x86_64/21.11/cuda/11.0/targets/x86_64-linux/include/cuda_runtime.h>
 
+
 int main(int argc, char *argv[]){
     //size of matrix, tolerance, iter_max
     int size = strtol(argv[1], NULL, 10);
