@@ -14,15 +14,15 @@ cpu: main.c
 
 cpun: nonopt.c
 	gcc nonopt.c -o cpun.out
-	time ./cpun.out 256 0.000001 1000000
+	time ./cpun.out 128 0.000001 1000000
 
 gpu: main.c
 	pgcc -acc -ta=nvidia main.c -o gpu.out
-	time CUDA_VISIBLE_DEVICES=1 ./gpu.out 128 0.000001 1000000
+	time CUDA_VISIBLE_DEVICES=2 ./gpu.out 128 0.000001 1000000
 
 gpun: nonopt.c
 	pgcc -acc -ta=tesla nonopt.c -o gpun.out
-	time CUDA_VISIBLE_DEVICES=2 ./gpun.out 256 0.000001 1000000
+	time CUDA_VISIBLE_DEVICES=2 ./gpun.out 128 0.000001 1000000
 
 nsy: gpu.out
 	nsys profile -o testGPU -t openacc,cuda ./gpu.out 128 0.000001 101

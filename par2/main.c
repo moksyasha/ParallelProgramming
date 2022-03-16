@@ -12,6 +12,7 @@ int main(int argc, char *argv[]){
 
     double** A = (double**)malloc((size + 2) * sizeof(double*));
     double** Anew = (double**)malloc((size + 2) * sizeof(double*));
+    
     for (int i = 0; i < size + 2; ++i) {
         A[i] = (double*)malloc((size + 2) * sizeof(double));
         Anew[i] = (double*)malloc((size + 2) * sizeof(double));
