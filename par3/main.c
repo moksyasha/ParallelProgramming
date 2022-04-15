@@ -9,16 +9,16 @@ int main(int argc, char *argv[]){
     //size of matrix, tolerance, iter_max
     int size = strtol(argv[1], NULL, 10);
 
-    float tol = atof(argv[2]);
+    double tol = atof(argv[2]);
     int iter_max = strtol(argv[3], NULL, 10);
 
-    float* A = (float*)malloc(((size + 2)*(size+2)) * sizeof(float));
-    float* Anew = (float*)malloc(((size + 2)*(size+2)) * sizeof(float));
+    double* A = (double*)malloc(((size + 2)*(size+2)) * sizeof(double));
+    double* Anew = (double*)malloc(((size + 2)*(size+2)) * sizeof(double));
 
     int iter = 0;
-    float error = 100.0;
-    float *ptr;
-    float add_gradient = 10.0 / (size + 2); 
+    double error = 100.0;
+    double *ptr;
+    double add_gradient = 10.0 / (size + 1); 
     
     #pragma acc enter data create(A[0:((size+2)*(size+2))], Anew[0:((size+2)*(size+2))]) copyin(size, add_gradient)
 
@@ -28,12 +28,12 @@ int main(int argc, char *argv[]){
     for (int i = 0; i < size + 2; i++){
         A[i*(size+2) + 0] = 10 + add_gradient*i;
         A[i] = 10 + add_gradient*i;
-        A[size+1 + i] = 20 + add_gradient*i;
+        A[(size+1)*(size+2) + i] = 20 + add_gradient*i;
         A[i*(size+2)+size+1] = 20 + add_gradient*i;
 
         Anew[i*(size+2) + 0] = A[i*(size+2) + 0];
         Anew[i] = A[i];
-        Anew[size+1 + i] = A[size+1 + i];
+        Anew[(size+1)*(size+2) + i] = A[(size+1)*(size+2) + i];
         Anew[i*(size+2)+size+1] = A[i*(size+2)+size+1];
     }
     }
@@ -41,8 +41,8 @@ int main(int argc, char *argv[]){
     cublasHandle_t handle;
     cublasCreate(&handle);
     int index;
-    float max;
-    float neg_one = (-1.0);
+    double max;
+    double neg_one = (-1.0);
 
     while ((error > tol) && (iter < iter_max)){
 
@@ -64,8 +64,8 @@ int main(int argc, char *argv[]){
             #pragma acc wait(1)
             #pragma acc host_data use_device(A, Anew) 
             {
-                cublasSaxpy(handle, ((size+2)*(size+2)), &neg_one, Anew, 1, A, 1);
-                cublasIsamax(handle, ((size+2)*(size+2)), A, 1, &index);
+                cublasDaxpy(handle, ((size+2)*(size+2)), &neg_one, Anew, 1, A, 1);
+                cublasIdamax(handle, ((size+2)*(size+2)), A, 1, &index);
             }
 
             #pragma acc update self(A[index-1:1])
@@ -74,7 +74,7 @@ int main(int argc, char *argv[]){
 
             #pragma acc host_data use_device(A, Anew)
             {
-            cublasScopy(handle, ((size+2)*(size+2)), Anew, 1, A, 1);
+            cublasDcopy(handle, ((size+2)*(size+2)), Anew, 1, A, 1);
             }
 
             if(error > max)
@@ -90,10 +90,10 @@ int main(int argc, char *argv[]){
 
     printf("%d : %lf\n", iter, error);
 
-    #pragma acc exit data delete(A[0:((size+2)*(size+2))], Anew[0:((size+2)*(size+2))])
+    //#pragma acc exit data delete(A[0:((size+2)*(size+2))], Anew[0:((size+2)*(size+2))])
 
-    free(A);
-    free(Anew);
+    //free(A);
+    //free(Anew);
 
     return 0;
 }

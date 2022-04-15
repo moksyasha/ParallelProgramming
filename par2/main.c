@@ -21,7 +21,7 @@ int main(int argc, char *argv[]){
     int iter = 0;
     double error = 1.0;
     double **ptr;
-    double add_gradient = 10.0 / (size + 2); 
+    double add_gradient = 10.0 / (size + 1); 
     
     #pragma acc enter data create(A[0:size+2][0:size+2], Anew[0:size+2][0:size+2]) copyin(size, add_gradient)
 

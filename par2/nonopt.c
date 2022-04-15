@@ -27,7 +27,7 @@ int main(int argc, char *argv[]){
     A[size+1][0] = 20.0;
     A[size+1][size+1] = 30.0;
 
-    double add_gradient = 10.0 / (size + 2);
+    double add_gradient = 10.0 / (size + 1);
 
     for (int i = 1; i < size + 1; i++){
         A[0][i] = A[0][i-1] + add_gradient;

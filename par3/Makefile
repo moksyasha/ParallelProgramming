@@ -11,7 +11,7 @@ clean:
 
 cpu: main.c
 	gcc main.c -o cpu.out
-	time ./cpu.out 128 0.000001 1000000
+	time ./cpu.out 4 0.000001 1000000
 
 #nvcc -arch=sm_35 -rdc=true -o main.v2 time_propagation_cublas.cu -lcublas -lcublas_device -lcudadevrt
 #nvcc maintest.cu -lcublas -lcurand -o blas.out
