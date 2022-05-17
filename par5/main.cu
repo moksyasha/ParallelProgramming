@@ -58,11 +58,58 @@ __global__ void init(double *A, double *Anew, int size, double gradient){
 }
 
 
+// [start, end)
+void getArrayBoundaries(int* start, int* end, int rank, int mx_size, int rank_count)
+{
+    int y_size = mx_size / rank_count;
+    int remains = mx_size - y_size * rank_count;
+
+    int *y_starts = (int*)calloc(rank_count, sizeof(int));
+
+    y_starts[0] = 0;
+    for (int i = 1; i < rank_count; ++i)
+    {
+        y_starts[i] = y_starts[i - 1] + y_size;
+        if (remains > 0)
+        {
+            y_starts[i] += 1;
+            --remains;
+        }
+    }
+    
+    int *y_ends = (int*)calloc(rank_count, sizeof(int));
+
+    y_ends[rank_count - 1] = mx_size;
+    if (rank != rank_count - 1)
+    {
+        y_ends[rank] = y_starts[rank + 1];
+    }
+
+    *start = y_starts[rank] * mx_size;
+    *end = y_ends[rank] * mx_size;
+
+    free(y_starts);
+    free(y_ends);
+}
+
+
 int main(int argc, char *argv[]){
     //size of matrix, tolerance, iter_max
     int size = strtol(argv[1], NULL, 10);
     double tol = atof(argv[2]);
     int iter_max = strtol(argv[3], NULL, 10);
+
+
+    MPI_Status status;
+    int rank, numRanks;
+    /* Initialize the MPI library */
+    MPI_Init (&argc, &argv);
+    /* Determine unique id of the calling process of all processes participating
+       in this MPI program.*/
+	MPI_Comm_rank (MPI_COMM_WORLD, &rank);//номер текущего процесса
+    MPI_Comm_size (MPI_COMM_WORLD, &numRanks);//число процессов
+
+
 
     cudaError_t err;
     double* A = (double*)malloc(((size+2)*(size+2)) * sizeof(double));
@@ -72,6 +119,12 @@ int main(int argc, char *argv[]){
     double* max_array = (double*)malloc(((size+2)*(size+2)) * sizeof(double));
     double* max_array_d;
     double* max_number_d;
+
+
+    int begin_id, end_id;
+    setDevice(rank);
+    getArrayBoundaries(&begin_id, &end_id, rank, size, numRanks);
+
 
     err = cudaMalloc(&A_d, ((size+2)*(size+2))*sizeof(double));
     CHKCUDA(err)

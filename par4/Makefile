@@ -17,6 +17,10 @@ cuda: main.cu
 	nvcc -arch=sm_70 main.cu -lm -o cuda.out
 	time ./cuda.out 128 0.000001 1000000  
 
+cudagraph: main.cu
+	nvcc -arch=sm_70 main_graphs.cu -lm -o cuda_graph.out
+	time ./cuda_graph.out 128 0.000001 1000000 
+
 test: maintest.c
 	gcc maintest.c -o maintest.out
 	time ./maintest.out

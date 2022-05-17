@@ -110,30 +110,51 @@ int main(int argc, char *argv[]){
     cudaStream_t stream1;
     cudaStreamCreate(&stream1);
 
+    bool graphCreated = false;
+    cudaGraph_t graph;
+    cudaGraphExec_t instance;
 
-    while ((error > tol) && (iter < iter_max)){
+    cudaStreamBeginCapture(stream1, cudaStreamCaptureModeGlobal);
+    while ((error > tol) && (iter < (iter_max / 150))){
 
         iter++;
 
-        calc<<<GS,BS, 0, stream1>>>(A_d, Anew_d, size+2);
+        if(!graphCreated){
 
-        if ((iter % 150 == 0) || (iter == 1)){
-            
-            cudaDeviceSynchronize();
+            cudaStreamBeginCapture(stream1, cudaStreamCaptureModeGlobal);
 
-            error = 0.0;
-
-            arr_diff<<<GS, BS>>>(A_d, Anew_d, max_array_d, size);
-            
-            cub::DeviceReduce::Max(d_temp_storage, temp_storage_bytes, max_array_d, max_number_d, ((size+2)*(size+2)));
-            cudaMemcpy(&error, max_number_d, sizeof(double), cudaMemcpyDeviceToHost);
-
-            printf("%d : %lf\n", iter, error);
+            for(int i = 0; i < 150; i ++)
+            {
+                calc<<<GS,BS, 0, stream1>>>(A_d, Anew_d, size+2);
+                ptr = A_d;
+                A_d = Anew_d;
+                Anew_d = ptr;
+            }
+            ptr = A_d;
+            A_d = Anew_d;
+            Anew_d = ptr;
+            cudaStreamEndCapture(stream1, &graph);
+            cudaGraphInstantiate(&instance, graph, NULL, NULL, 0);
+    
+            graphCreated=true;
         }
 
-        ptr = A_d;
-        A_d = Anew_d;
-        Anew_d = ptr;
+        
+        cudaGraphLaunch(instance, stream1);
+        cudaDeviceSynchronize();
+
+
+        //if ((iter % 150 == 0) || (iter == 1)){
+        error = 0.0;
+
+        arr_diff<<<GS, BS>>>(A_d, Anew_d, max_array_d, size);
+        
+        cub::DeviceReduce::Max(d_temp_storage, temp_storage_bytes, max_array_d, max_number_d, ((size+2)*(size+2)));
+        cudaMemcpy(&error, max_number_d, sizeof(double), cudaMemcpyDeviceToHost);
+
+        printf("%d : %lf\n", iter, error);
+        //}
+     
     }
 
     printf("%d : %lf\n", iter, error);

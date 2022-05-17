@@ -77,8 +77,8 @@ int main(int argc, char *argv[]){
             cublasDcopy(handle, ((size+2)*(size+2)), Anew, 1, A, 1);
             }
 
-            if(error > max)
-                error = max;
+            
+            error = max;
 
             printf("%d : %lf\n", iter, error);
         }
